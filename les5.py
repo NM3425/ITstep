@@ -21,16 +21,39 @@ class MinfinCurrency:
 
     def getinfo(self):
         currencies = []
-        blocks = self.soup.find_all("div", class_="currency-rate")[:5]
+        table = self.soup.find_all('tr', class_="sc-1x32wa2-4 dKDsVV")
 
-        for block in blocks:
-            name = block.find("a").text.strip()
-            print(name)
-            buy = block.find("span", class_="buy").text.strip()
-            sell = block.find("span", class_="sell").text.strip()
+        if not table:
+            print("Не вдалося знайти таблицю валют")
+            return currencies
 
-            buy = float(buy.replace(",", "."))
-            sell = float(sell.replace(",", "."))
+        def clean_number(text):
+            text = text.replace(',', '.').strip()
+            text = text.split()[0]
+            result = ""
+            dot_used = False
+
+            for ch in text:
+                if ch.isdigit():
+                    result += ch
+                elif ch == '.' and not dot_used:
+                    result += ch
+                    dot_used = True
+                else:
+                    break
+
+            return round(float(result), 2) if result else 0.0
+
+        for row in table[1:6]:
+            name_tag = row.find("a", class_="sc-1x32wa2-7 ciClTw")
+            name = name_tag.text.strip() if name_tag else "?"
+
+            tds = row.find_all("td")
+            if len(tds) < 3:
+                continue
+
+            buy = clean_number(tds[1].text)
+            sell = clean_number(tds[2].text)
 
             currencies.append({
                 "name": name,
@@ -50,10 +73,13 @@ class MinfinCurrency:
 
 
 
+
 url = "https://minfin.com.ua/ua/currency/"
 obj = MinfinCurrency(url)
 
-obj.auditSite()
+if not obj.auditSite():
+    exit()
+
 currencies = obj.getinfo()
 
 if not currencies:
@@ -62,24 +88,20 @@ if not currencies:
 
 obj.showinfo(currencies)
 
-
 print("\nЩо ви хочете зробити?")
 print("1 - Купити валюту")
 print("2 - Продати валюту")
 action = input("> ")
 
-
 print("\nВиберіть валюту (1-5):")
 choice = int(input("> ")) - 1
 currency = currencies[choice]
-
 
 amount = float(input("\nВведіть суму (1000 - 10000 грн):\n> "))
 
 if amount < 1000 or amount > 10000:
     print("Сума має бути від 1000 до 10000 грн")
     exit()
-
 
 if action == "1":
     result = amount / currency["sell"]
@@ -94,7 +116,6 @@ elif action == "2":
 else:
     print("Невірний вибір")
     exit()
-
 
 confirm = input("\nПідтвердити операцію? (так / ні): ").lower()
 
